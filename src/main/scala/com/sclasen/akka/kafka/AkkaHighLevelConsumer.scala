@@ -9,9 +9,7 @@ import collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
 import concurrent.duration._
 import java.util.Properties
-import kafka.consumer.{TopicFilter, ConsumerConfig, Consumer}
-import kafka.consumer.ConsumerIterator
-import kafka.consumer.KafkaStream
+import kafka.consumer._
 import kafka.serializer.Decoder
 import kafka.message.MessageAndMetadata
 
@@ -51,28 +49,33 @@ class AkkaHighLevelConsumer[Key,Msg](props:AkkaConsumerProps[Key,Msg]) {
   }
 
   def createStream = {
-    val topic = props.topicFilterOrTopic match {
-      case Left(t) => t.regex
-      case Right(f) => f
+    props.topicFilterOrTopic match {
+      case Left(t) =>
+        println(s"createStream for topic: ${t}")
+        connector.createMessageStreamsByFilter(t, props.streams, props.keyDecoder, props.msgDecoder)
+      case Right(t) =>
+        println(s"createStream for topic: ${t}")
+        connector.createMessageStreams(Map(t -> props.streams), props.keyDecoder, props.msgDecoder).apply(t)
     }
-    println(s"createStream for topic: ${topic}")
-    connector.createMessageStreams(Map(topic -> props.streams), props.keyDecoder, props.msgDecoder).apply(topic)
   }
 
   def start():Future[Unit] = {
     val streams = createStream
-
     val f = streams.map { stream =>
+      val it = stream.iterator()
+      def hasNext = try {
+        it.hasNext()
+      } catch {
+        case cte: ConsumerTimeoutException => false
+      }
       Future {
-        val it = stream.iterator
         println("blocking on stream")
-        while (it.hasNext) {
-          println("get next")
-          val msg = props.msgHandler(it.next())
-          println(s"csg: ${msg}")
-          props.receiver ! msg
+        while(true) {
+          while (hasNext) {
+            val msg = props.msgHandler(it.next())
+            props.receiver ! msg
+          }
         }
-        println("Fall through..")
       }(ecForBlockingIterator) // or mark the execution context implicit. I like to mention it explicitly.
     }
     Future.sequence(f).map{_ => Unit}
