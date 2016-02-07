@@ -51,7 +51,11 @@ class AkkaHighLevelConsumer[Key,Msg](props:AkkaConsumerProps[Key,Msg]) {
   }
 
   def createStream = {
-    val topic = props.topicFilterOrTopic.right.get
+    val topic = props.topicFilterOrTopic match {
+      case Left(t) => t.regex
+      case Right(f) => f
+    }
+    println(s"createStream for topic: ${topic}")
     connector.createMessageStreams(Map(topic -> props.streams), props.keyDecoder, props.msgDecoder).apply(topic)
   }
 
@@ -61,8 +65,11 @@ class AkkaHighLevelConsumer[Key,Msg](props:AkkaConsumerProps[Key,Msg]) {
     val f = streams.map { stream =>
       Future {
         val it = stream.iterator
+        println("blocking on stream")
         while (it.hasNext) {
+          println("get next")
           val msg = props.msgHandler(it.next())
+          println(s"csg: ${msg}")
           props.receiver ! msg
         }
         println("Fall through..")
