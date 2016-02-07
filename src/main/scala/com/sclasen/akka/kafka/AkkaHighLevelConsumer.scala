@@ -65,6 +65,7 @@ class AkkaHighLevelConsumer[Key,Msg](props:AkkaConsumerProps[Key,Msg]) {
           val msg = props.msgHandler(it.next())
           props.receiver ! msg
         }
+        println("Fall through..")
       }(ecForBlockingIterator) // or mark the execution context implicit. I like to mention it explicitly.
     }
     Future.sequence(f).map{_ => Unit}
