@@ -15,9 +15,9 @@ parallelExecution in Test := false
 resolvers += "spray repo" at "http://repo.spray.io"
 
 
-libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.4.0" % "compile"
+libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.4.1" % "compile"
 
-libraryDependencies += "com.typesafe.akka" %% "akka-slf4j" % "2.4.0" % "test,it"
+libraryDependencies += "com.typesafe.akka" %% "akka-slf4j" % "2.4.1" % "test,it"
 
 libraryDependencies +=   "org.apache.kafka" %% "kafka"  % "0.8.2.2" exclude("log4j", "log4j") exclude("org.slf4j","slf4j-log4j12")
 
