@@ -34,7 +34,7 @@ class AkkaHighLevelConsumer[Key,Msg](props:AkkaConsumerProps[Key,Msg]) {
     val consumerConfig = props.system.settings.config.getConfig("kafka.consumer")
     val consumerProps = consumerConfig.entrySet().asScala.map{
       entry => entry.getKey -> consumerConfig.getString(entry.getKey)
-    } ++ Set("zookeeper.connect" -> zkConnect, "group.id" -> groupId)
+    } ++ Set("zookeeper.connect" -> zkConnect, "group.id" -> groupId, "consumer.timeout.ms" -> "-1", "auto.commit.enable" -> "true")
     toProps(consumerProps)
   }
 
@@ -51,10 +51,10 @@ class AkkaHighLevelConsumer[Key,Msg](props:AkkaConsumerProps[Key,Msg]) {
   def createStream = {
     props.topicFilterOrTopic match {
       case Left(t) =>
-        println(s"createStream for topic: ${t}")
+        props.system.log.info(s"createStream for topic: ${t}")
         connector.createMessageStreamsByFilter(t, props.streams, props.keyDecoder, props.msgDecoder)
       case Right(t) =>
-        println(s"createStream for topic: ${t}")
+        props.system.log.info(s"createStream for topic: ${t}")
         connector.createMessageStreams(Map(t -> props.streams), props.keyDecoder, props.msgDecoder).apply(t)
     }
   }
@@ -66,15 +66,15 @@ class AkkaHighLevelConsumer[Key,Msg](props:AkkaConsumerProps[Key,Msg]) {
       def hasNext = try {
         it.hasNext()
       } catch {
-        case cte: ConsumerTimeoutException => false
+        case cte: ConsumerTimeoutException =>
+          props.system.log.warning("AkkaHighLevelConsumer should not see ConsumerTimeoutException")
+          false
       }
       Future {
-        println("blocking on stream")
-        while(true) {
-          while (hasNext) {
-            val msg = props.msgHandler(it.next())
-            props.receiver ! msg
-          }
+        props.system.log.debug("blocking on stream")
+        while (hasNext) {
+          val msg = props.msgHandler(it.next())
+          props.receiver ! msg
         }
       }(ecForBlockingIterator) // or mark the execution context implicit. I like to mention it explicitly.
     }
