@@ -3,7 +3,6 @@ package com.sclasen.akka.kafka
 import java.util.concurrent.Executors
 
 import akka.actor._
-import akka.pattern._
 import akka.util.Timeout
 import collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
