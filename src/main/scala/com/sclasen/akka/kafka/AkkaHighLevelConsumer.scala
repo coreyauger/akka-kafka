@@ -32,9 +32,13 @@ class AkkaHighLevelConsumer[Key,Msg](props:AkkaConsumerProps[Key,Msg]) {
 
   def kafkaConsumerProps(zkConnect:String, groupId:String) = {
     val consumerConfig = props.system.settings.config.getConfig("kafka.consumer")
-    val consumerProps = consumerConfig.entrySet().asScala.map{
-      entry => entry.getKey -> consumerConfig.getString(entry.getKey)
-    } ++ Set("zookeeper.connect" -> zkConnect, "group.id" -> groupId, "consumer.timeout.ms" -> "-1", "auto.commit.enable" -> "true")
+    val required = Set("zookeeper.connect" -> zkConnect, "group.id" -> groupId, "consumer.timeout.ms" -> "-1", "auto.commit.enable" -> "true")
+    val requiredKeys = required.map(_._1)
+    val consumerProps = consumerConfig.entrySet().asScala
+      .filter( k => !requiredKeys.contains(k.getKey) )
+      .map{
+        entry => entry.getKey -> consumerConfig.getString(entry.getKey)
+      } ++ required
     toProps(consumerProps)
   }
 
